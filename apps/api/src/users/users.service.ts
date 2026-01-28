@@ -15,44 +15,69 @@ export class UsersService {
         companyId?: string;
         customRoleId?: string;
     }) {
+        console.log('📝 Tentative de création d\'utilisateur:', {
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: data.role,
+            companyId: data.companyId,
+            customRoleId: data.customRoleId,
+        });
+
         const existingUser = await this.prisma.user.findUnique({
             where: { email: data.email },
         });
 
         if (existingUser) {
+            console.error('❌ Email déjà utilisé:', data.email);
             throw new ConflictException('Cet email est déjà utilisé');
         }
 
-        return this.prisma.user.create({
-            data: {
-                email: data.email,
-                password: data.password,
-                firstName: data.firstName,
-                lastName: data.lastName,
-                role: data.role || 'SUB_ACCOUNT' as any,
-                companyId: data.companyId,
-                customRoleId: data.customRoleId,
-            },
-            select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                role: true,
-                companyId: true,
-                customRoleId: true,
-                customRole: {
-                    select: {
-                        id: true,
-                        name: true,
-                        permissions: true,
-                    }
+        // Nettoyer customRoleId - si c'est une chaîne vide, le mettre à undefined
+        const cleanCustomRoleId = data.customRoleId && data.customRoleId.trim() !== ''
+            ? data.customRoleId
+            : undefined;
+
+        console.log('🧹 CustomRoleId nettoyé:', cleanCustomRoleId);
+
+        try {
+            const newUser = await this.prisma.user.create({
+                data: {
+                    email: data.email,
+                    password: data.password,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    role: data.role || 'SUB_ACCOUNT' as any,
+                    companyId: data.companyId,
+                    customRoleId: cleanCustomRoleId,
                 },
-                permissions: true,
-                isActive: true,
-                createdAt: true,
-            } as any,
-        });
+                select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    role: true,
+                    companyId: true,
+                    customRoleId: true,
+                    customRole: {
+                        select: {
+                            id: true,
+                            name: true,
+                            permissions: true,
+                        }
+                    },
+                    permissions: true,
+                    isActive: true,
+                    createdAt: true,
+                } as any,
+            });
+
+            console.log('✅ Utilisateur créé avec succès:', newUser.id);
+            return newUser;
+        } catch (error) {
+            console.error('❌ Erreur Prisma lors de la création:', error);
+            throw error;
+        }
     }
 
     async findByEmail(email: string) {

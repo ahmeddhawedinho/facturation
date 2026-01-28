@@ -140,6 +140,12 @@ export default function TeamManagementPage() {
 
     const handleSaveUser = async () => {
         try {
+            console.log('🔍 Données utilisateur avant envoi:', {
+                userForm,
+                companyId: user?.companyId,
+                editingUser: editingUser?.id
+            });
+
             if (editingUser) {
                 const updateData: any = {
                     firstName: userForm.firstName,
@@ -148,14 +154,42 @@ export default function TeamManagementPage() {
                 }
                 if (userForm.customRoleId) updateData.customRoleId = userForm.customRoleId
                 if (userForm.password) updateData.password = userForm.password
+
+                console.log('📤 Mise à jour utilisateur:', updateData);
                 await api.put(`/users/${editingUser.id}`, updateData)
             } else {
-                await api.post('/users', { ...userForm, role: 'SUB_ACCOUNT', companyId: user?.companyId })
+                // Validation côté client
+                if (!userForm.email || !userForm.firstName || !userForm.lastName || !userForm.password) {
+                    alert('Veuillez remplir tous les champs obligatoires');
+                    return;
+                }
+
+                if (!user?.companyId) {
+                    alert('Erreur: CompanyId manquant. Veuillez vous reconnecter.');
+                    return;
+                }
+
+                const createData = {
+                    ...userForm,
+                    role: 'SUB_ACCOUNT',
+                    companyId: user.companyId
+                };
+
+                console.log('📤 Création utilisateur:', createData);
+                await api.post('/users', createData)
             }
             setShowUserModal(false)
             loadData()
         } catch (error: any) {
-            alert(error.response?.data?.message || 'Erreur lors de l\'enregistrement')
+            console.error('❌ Erreur complète:', error);
+            console.error('❌ Réponse serveur:', error.response?.data);
+
+            const errorMessage = error.response?.data?.message
+                || error.response?.data?.error
+                || error.message
+                || 'Erreur lors de l\'enregistrement';
+
+            alert(`Erreur: ${errorMessage}`);
         }
     }
 
