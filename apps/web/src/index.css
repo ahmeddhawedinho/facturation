@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+:root {
+  --app-bg: #f8fafc;
+  --app-card-bg: #ffffff;
+  --app-card-hover: #f1f5f9;
+  --app-surface: #f1f5f9;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-border: #e2e8f0;
+  --app-sidebar: #ffffff;
+  --app-header: rgba(255, 255, 255, 0.82);
+}
+
+.theme-dark {
+  --app-bg: #09090b;
+  --app-card-bg: #111114;
+  --app-card-hover: #18181b;
+  --app-surface: #1e1e24;
+  --app-text: #f8fafc;
+  --app-text-muted: #a1a1aa;
+  --app-border: #27272a;
+  --app-sidebar: #09090b;
+  --app-header: rgba(9, 9, 11, 0.85);
+}
+
+.theme-blue {
+  --app-bg: #0b1120;
+  --app-card-bg: #0f172a;
+  --app-card-hover: #1e293b;
+  --app-surface: #1e293b;
+  --app-text: #f0f9ff;
+  --app-text-muted: #94a3b8;
+  --app-border: #1e293b;
+  --app-sidebar: #0b1120;
+  --app-header: rgba(11, 17, 32, 0.88);
+}
+
+@layer base {
+  body {
+    background: var(--app-bg);
+    color: var(--app-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  input,
+  select,
+  textarea {
+    color: var(--app-text);
+    background-color: var(--app-card-bg);
+  }
+
+  select option {
+    background-color: var(--app-card-bg);
+    color: var(--app-text);
+  }
+}
+
+/* Note: .btn, .card, and .input-app are now defined in tailwind.config.js plugins to avoid IDE CSS linting issues */
