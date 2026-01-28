@@ -42,6 +42,7 @@ export default function ChatPage() {
     const [isOfflineMode, setIsOfflineMode] = useState(false)
     const [showActivityLogs, setShowActivityLogs] = useState(false)
     const [activityLogs, setActivityLogs] = useState<any[]>([])
+    const [socketConnected, setSocketConnected] = useState(false)
 
     // Modal Create Room
     const [showCreateRoom, setShowCreateRoom] = useState(false)
@@ -143,15 +144,44 @@ export default function ChatPage() {
     useEffect(() => {
         if (!token) return;
 
-        const newSocket = io('http://localhost:3001/chat', { auth: { token } });
+        const newSocket = io('http://localhost:3001/chat', {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 10000
+        });
 
-        newSocket.on('connect', () => { console.log('Chat Connected'); });
+        newSocket.on('connect', () => {
+            console.log('✅ Chat Connected');
+            setIsOfflineMode(false);
+            setSocketConnected(true);
+        });
+
+        newSocket.on('connect_error', (error) => {
+            console.error('❌ Socket connection error:', error);
+            // Détecter si c'est un bloqueur de publicités
+            if (error.message.includes('ERR_BLOCKED_BY_CLIENT') || error.message.includes('xhr poll error')) {
+                alert('⚠️ ERREUR DE CONNEXION\n\nLa messagerie ne peut pas se connecter. Cela est généralement causé par :\n\n1. Un bloqueur de publicités (AdBlock, uBlock Origin, etc.)\n2. Une extension de navigateur bloquant les WebSockets\n\nSolutions :\n- Désactivez temporairement votre bloqueur de publicités\n- Ajoutez ce site à la liste blanche\n- Essayez un autre navigateur');
+            }
+        });
+
+        newSocket.on('disconnect', (reason) => {
+            console.warn('⚠️ Socket disconnected:', reason);
+            setSocketConnected(false);
+            if (reason === 'io server disconnect') {
+                // Le serveur a forcé la déconnexion, on reconnecte manuellement
+                newSocket.connect();
+            }
+        });
 
         newSocket.on('userStatus', ({ userId, status }: { userId: string, status: string }) => {
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, isOnline: status === 'online' } : u));
         });
 
         newSocket.on('newMessage', (msg: any) => {
+            console.log('📨 New message received:', msg);
             setMessages(prev => {
                 if (isAuditMode) return prev;
                 // Legacy Channel
@@ -174,8 +204,8 @@ export default function ChatPage() {
         });
 
         newSocket.on('error', (err: any) => {
-            console.error("Socket error", err);
-            // alert(err.message); // Too intrusive
+            console.error("❌ Socket error", err);
+            alert(`Erreur de messagerie: ${err.message || 'Erreur inconnue'}`);
         });
 
         setSocket(newSocket);
@@ -184,7 +214,10 @@ export default function ChatPage() {
         api.get('/chat/users').then(res => setUsers(res.data)).catch(console.error);
         api.get('/chat/rooms').then(res => setRooms(res.data)).catch(console.error);
 
-        return () => { newSocket.close(); }
+        return () => {
+            console.log('🔌 Closing socket connection');
+            newSocket.close();
+        }
     }, [token, activeChannel, activeDirectId, activeRoomId, isAuditMode, user?.id]);
 
     // 2. Chargement Historique
@@ -220,11 +253,24 @@ export default function ChatPage() {
         e.preventDefault();
         if (!inputText.trim() || !socket || isAuditMode) return;
 
+        // Vérifier que le socket est connecté
+        if (!socketConnected) {
+            alert('❌ Impossible d\'envoyer le message\n\nLa connexion au serveur de messagerie est perdue.\n\nVérifiez:\n- Le point à côté de "MESSAGERIE" doit être vert\n- Votre connexion internet\n- Que le serveur API est démarré');
+            return;
+        }
+
+        // Vérifier qu'une cible est sélectionnée
+        if (!activeChannel && !activeRoomId && !activeDirectId) {
+            alert('❌ Aucune destination sélectionnée\n\nVeuillez sélectionner:\n- Un canal (#GENERAL, #ANNONCES)\n- Un canal privé\n- Un utilisateur pour un message direct');
+            return;
+        }
+
         const payload: any = { content: inputText };
         if (activeChannel) payload.channel = activeChannel;
         if (activeRoomId) payload.channelId = activeRoomId;
         if (activeDirectId) payload.receiverId = activeDirectId;
 
+        console.log('📤 Sending message:', payload);
         socket.emit('sendMessage', payload);
         setInputText('');
     };
@@ -258,7 +304,10 @@ export default function ChatPage() {
                         <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-muted transition-colors">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <h2 className="font-black text-app text-lg tracking-tight">MESSAGERIE</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="font-black text-app text-lg tracking-tight">MESSAGERIE</h2>
+                            <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} title={socketConnected ? 'Connecté' : 'Déconnecté'}></div>
+                        </div>
                     </div>
                     <div className="flex gap-1">
 

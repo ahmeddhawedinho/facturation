@@ -15,15 +15,20 @@ export class UsersService {
         companyId?: string;
         customRoleId?: string;
     }) {
-        console.log('📝 Tentative de création d\'utilisateur:', {
+        console.log('═══════════════════════════════════════════════════');
+        console.log('📝 CRÉATION D\'UTILISATEUR - DÉBUT');
+        console.log('═══════════════════════════════════════════════════');
+        console.log('📋 Données reçues:', {
             email: data.email,
             firstName: data.firstName,
             lastName: data.lastName,
             role: data.role,
             companyId: data.companyId,
             customRoleId: data.customRoleId,
+            passwordLength: data.password?.length
         });
 
+        console.log('🔍 Vérification de l\'email existant...');
         const existingUser = await this.prisma.user.findUnique({
             where: { email: data.email },
         });
@@ -32,6 +37,7 @@ export class UsersService {
             console.error('❌ Email déjà utilisé:', data.email);
             throw new ConflictException('Cet email est déjà utilisé');
         }
+        console.log('✅ Email disponible');
 
         // Nettoyer customRoleId - si c'est une chaîne vide, le mettre à undefined
         const cleanCustomRoleId = data.customRoleId && data.customRoleId.trim() !== ''
@@ -41,6 +47,7 @@ export class UsersService {
         console.log('🧹 CustomRoleId nettoyé:', cleanCustomRoleId);
 
         try {
+            console.log('💾 Appel à Prisma.user.create...');
             const newUser = await this.prisma.user.create({
                 data: {
                     email: data.email,
@@ -72,10 +79,26 @@ export class UsersService {
                 } as any,
             });
 
-            console.log('✅ Utilisateur créé avec succès:', newUser.id);
+            console.log('═══════════════════════════════════════════════════');
+            console.log('✅ UTILISATEUR CRÉÉ AVEC SUCCÈS');
+            console.log('═══════════════════════════════════════════════════');
+            console.log('👤 ID:', newUser.id);
+            console.log('📧 Email:', newUser.email);
+            console.log('👨 Nom:', newUser.firstName, newUser.lastName);
+            console.log('🏢 CompanyId:', newUser.companyId);
+            console.log('🔑 Role:', newUser.role);
+            console.log('✅ isActive:', newUser.isActive);
+            console.log('═══════════════════════════════════════════════════');
+
             return newUser;
         } catch (error) {
-            console.error('❌ Erreur Prisma lors de la création:', error);
+            console.error('═══════════════════════════════════════════════════');
+            console.error('❌ ERREUR PRISMA LORS DE LA CRÉATION');
+            console.error('═══════════════════════════════════════════════════');
+            console.error('❌ Message:', error.message);
+            console.error('❌ Code:', error.code);
+            console.error('❌ Stack:', error.stack);
+            console.error('═══════════════════════════════════════════════════');
             throw error;
         }
     }

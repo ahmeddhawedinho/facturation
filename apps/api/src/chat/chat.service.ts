@@ -7,8 +7,57 @@ export class ChatService {
 
     // Sauvegarder un message
     async saveMessage(companyId: string, senderId: string, payload: { content: string, receiverId?: string, channel?: string, channelId?: string }) {
+        console.log('💬 saveMessage called with:', { companyId, senderId, payload });
+
         // Validation basique
-        if (!payload.receiverId && !payload.channel && !payload.channelId) throw new Error("Target missing");
+        if (!payload.receiverId && !payload.channel && !payload.channelId) {
+            console.error('❌ Target missing');
+            throw new Error("Target missing");
+        }
+
+        // Vérifier que le sender existe
+        console.log('🔍 Checking if sender exists:', senderId);
+        const sender = await this.prisma.user.findUnique({
+            where: { id: senderId },
+            select: { id: true, firstName: true, lastName: true, email: true, companyId: true, isActive: true }
+        });
+
+        console.log('👤 Sender found:', sender);
+
+        if (!sender) {
+            console.error(`❌ Sender not found in database: ${senderId}`);
+            throw new Error(`Sender not found: ${senderId}`);
+        }
+
+        if (!sender.isActive) {
+            console.error(`❌ Sender is not active: ${senderId}`);
+            throw new Error("Votre compte est désactivé");
+        }
+
+        if (sender.companyId !== companyId) {
+            console.error(`❌ Sender companyId mismatch: ${sender.companyId} !== ${companyId}`);
+            throw new Error("CompanyId mismatch");
+        }
+
+        // Vérifier que le receiverId existe (si fourni)
+        if (payload.receiverId) {
+            const receiver = await this.prisma.user.findUnique({ where: { id: payload.receiverId } });
+            if (!receiver) {
+                console.error(`Receiver not found: ${payload.receiverId}`);
+                throw new Error("Destinataire introuvable");
+            }
+        }
+
+        // Vérifier que le channelId existe (si fourni)
+        if (payload.channelId) {
+            const channel = await (this.prisma as any).chatChannel.findUnique({
+                where: { id: payload.channelId }
+            });
+            if (!channel) {
+                console.error(`Channel not found: ${payload.channelId}`);
+                throw new Error("Canal introuvable");
+            }
+        }
 
         // Verify Membership for Private Channels
         if (payload.channelId) {
@@ -24,16 +73,27 @@ export class ChatService {
             }
         }
 
+        // Construire l'objet data dynamiquement pour éviter les erreurs de FK
+        const messageData: any = {
+            content: payload.content,
+            senderId,
+            companyId,
+            isRead: false
+        };
+
+        // Ajouter les champs optionnels seulement s'ils ont une valeur
+        if (payload.receiverId) {
+            messageData.receiverId = payload.receiverId;
+        }
+        if (payload.channel) {
+            messageData.channel = payload.channel;
+        }
+        if (payload.channelId) {
+            messageData.channelId = payload.channelId;
+        }
+
         return this.prisma.chatMessage.create({
-            data: {
-                content: payload.content,
-                senderId,
-                companyId,
-                receiverId: payload.receiverId || null,
-                channel: payload.channel || null,
-                channelId: payload.channelId || null,
-                isRead: false
-            },
+            data: messageData,
             include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } }
         });
     }
